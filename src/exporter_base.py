@@ -2,61 +2,64 @@ import csv
 import json
 import datetime
 from pathlib import Path
-from typing import Generator, Union, Optional
+from typing import Generator, Union, Optional, List
 
 from tqdm import tqdm as tqdm_iter
 
 from .gharchive import GHArchive
 
 
-class RowExporter:
+class ExporterBase:
 
-    def __init__(self, archive: GHArchive):
-        self.archive = archive
+    FORMATS = ("csv", "ndjson")
+    NAME = None
 
-    def iter_rows(self, tqdm: Optional[dict] = None) -> Generator[dict, None, None]:
-        previous_event = None
+    exporters = dict()
 
-        iterable = self.archive.iter_events()
-        if tqdm is not None:
-            iterable = tqdm_iter(iterable, **tqdm)
+    def __init_subclass__(cls, **kwargs):
+        if cls.NAME:
+            # assert cls.NAME, f"Must define {cls.__name__}.NAME"
+            assert cls.NAME not in ExporterBase.exporters, \
+                f"{cls.__name__} uses similar name '{cls.NAME}' as {ExporterBase.exporters[cls.NAME].__name__}"
+            ExporterBase.exporters[cls.NAME] = cls
 
-        for event in iterable:
+    def __init__(self, filename: Union[Path, str], format: str):
+        self.filename = str(filename)
+        self.format = format
+        self._writer = None
+        self._fp = None
 
-            if previous_event:
-                for row in self.yield_rows(previous_event, False):
-                    yield row
-            previous_event = event
+    def finish(self):
+        if self._fp is not None:
+            self._fp.close()
+            self._fp = None
 
-        if previous_event:
-            for row in self.yield_rows(previous_event, True):
-                yield row
-
-    def yield_rows(self, event: dict, final: bool) -> Generator[dict, None, None]:
+    def digest(self, event: dict, final: bool):
         """
-        Overload to yield more or less rows per passed event.
+        Overload to process and export event data.
 
         :param event: original event from raw data.
         :param final: bool, True if this is this the final entry
         """
-        yield {"id": event["id"], "date": event["created_at"]}
+        self.store_row({
+            "date": event["created_at"],
+            "id": event["id"],
+            "type": event["type"],
+        })
 
-    def render_csv(self, filename: Union[str, Path], tqdm: Optional[dict] = None):
-        writer = None
+    def store_row(self, row: dict):
+        if self._fp is None:
+            self._fp = open(self.filename, "wt")
 
-        with open(str(filename), "wt") as fp:
-            for row in self.iter_rows(tqdm=tqdm):
+        if self.format == "csv":
+            if self._writer is None:
+                self._writer = csv.DictWriter(self._fp, fieldnames=list(row.keys()))
+                self._writer.writeheader()
 
-                if writer is None:
-                    writer = csv.DictWriter(fp, fieldnames=list(row.keys()))
-                    writer.writeheader()
+            self._writer.writerow(row)
 
-                writer.writerow(row)
-
-    def render_ndjson(self, filename: Union[str, Path], tqdm: Optional[dict] = None):
-        with open(str(filename), "wt") as fp:
-            for row in self.iter_rows(tqdm=tqdm):
-                fp.write(json.dumps(row, cls=JsonEncoder) + "\n")
+        elif self.format == "ndjson":
+            self._fp.write(json.dumps(row, cls=JsonEncoder) + "\n")
 
 
 class JsonEncoder(json.JSONEncoder):
@@ -66,13 +69,13 @@ class JsonEncoder(json.JSONEncoder):
         return super().default(o)
 
 
-class DateBucketExporter(RowExporter):
+class DateBucketExporter(ExporterBase):
 
     FREQUENCIES = ("d", "h", "m", "10m")
 
-    def __init__(self, archive: GHArchive, frequency: str):
+    def __init__(self, filename: Union[Path, str], format: str, frequency: str):
         assert frequency in self.FREQUENCIES
-        super().__init__(archive)
+        super().__init__(filename, format)
         self.frequency = frequency
         self._buckets = dict()
         self._yielded_buckets = set()
@@ -106,7 +109,7 @@ class DateBucketExporter(RowExporter):
             **bucket,
         }
 
-    def yield_rows(self, event: dict, final: bool) -> Generator[dict, None, None]:
+    def digest(self, event: dict, final: bool):
         self._event_count += 1
         #if self._event_count % 30000 == 0:
         #    print("    COUNT", self._event_count, "BUCKETSTASH", sorted(self._buckets))
@@ -126,7 +129,7 @@ class DateBucketExporter(RowExporter):
 
         if final:
             for k in sorted(self._buckets):
-                yield self.bucket_to_row(k, self._buckets[k])
+                self.store_row(self.bucket_to_row(k, self._buckets[k]))
                 self._yielded_buckets.add(k)
             self._buckets.clear()
             return
@@ -135,7 +138,37 @@ class DateBucketExporter(RowExporter):
             return
 
         for bd in sorted(self._buckets)[:-self._bucket_stash_size_threshold]:
-            yield self.bucket_to_row(bd, self._buckets[bd])
+            self.store_row(self.bucket_to_row(bd, self._buckets[bd]))
             self._yielded_buckets.add(bd)
             del self._buckets[bd]
-            print(f" @ {bucket_date} YIELDED {bd}, {len(self._buckets)} buckets in stash")
+            print(f" @ {bucket_date} STORED row {bd}, {len(self._buckets)} buckets in stash")
+
+
+def export(
+        iterable: Generator[dict, None, None],
+        exporters: List[ExporterBase],
+        tqdm: Optional[dict] = None,
+):
+    try:
+        previous_event = None
+
+        if tqdm is not None:
+            iterable = tqdm_iter(iterable, **tqdm)
+
+        for event in iterable:
+
+            if previous_event:
+                for e in exporters:
+                    e.digest(previous_event, False)
+
+            previous_event = event
+
+        if previous_event:
+            for e in exporters:
+                e.digest(previous_event, True)
+
+    except:
+
+        for e in exporters:
+            e.finish()
+        raise

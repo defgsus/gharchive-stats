@@ -3,6 +3,8 @@ from .exporter_base import *
 
 class TypeExporter(DateBucketExporter):
 
+    NAME = "type"
+
     def new_bucket(self, date: datetime.datetime) -> dict:
         return {"all": 0}
 
@@ -13,6 +15,8 @@ class TypeExporter(DateBucketExporter):
 
 
 class UserExporter(DateBucketExporter):
+
+    NAME = "user"
 
     def new_bucket(self, date: datetime.datetime) -> dict:
         return {"all": 0}
