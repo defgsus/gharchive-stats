@@ -8,8 +8,6 @@ from typing import Generator, Union, Optional, List
 
 from tqdm import tqdm as tqdm_iter
 
-from .gharchive import GHArchive
-
 
 class ExporterBase:
 
@@ -63,7 +61,10 @@ class ExporterBase:
 
             if self._writer is None:
                 # create csv with columns as we know it
-                self._csv_fieldnames = self.columns() or list(row.keys())
+                self._csv_fieldnames = self.columns() or []
+                for key in row.keys():
+                    if key not in self._csv_fieldnames:
+                        self._csv_fieldnames.append(key)
                 self._start_csv_writer()
 
             else:

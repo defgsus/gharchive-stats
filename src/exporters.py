@@ -18,6 +18,7 @@ class TypeExporter(DateBucketExporter):
     def columns(self) -> List[str]:
         # TODO: this is incomplete, e.g. is it called `WatchEvent.stopped`? I don"t know yet
         return [
+            "date",
             "all",
             "CommitCommentEvent",
             "CreateEvent",
@@ -66,7 +67,7 @@ class UserExporter(DateBucketExporter):
         return {"all": 0}
 
     def add_to_bucket(self, date: str, bucket: dict, event: dict):
-        user = event["actor"]["login"]
+        user = event["actor"].get("login", "???")  # there are cases...
         repo = event["repo"]["name"]
         type = get_event_type(event)
         key = f"{type}/{user}/{repo}"
