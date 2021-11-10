@@ -11,7 +11,7 @@ class GHArchive:
     def __init__(
             self,
             raw_path: Union[str, Path],
-            year: int,
+            year: str = "*",
             month: Optional[int] = None,
             day: Optional[int] = None,
     ):

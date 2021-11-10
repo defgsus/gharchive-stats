@@ -25,8 +25,8 @@ def parse_args():
         help="Path to raw data",
     )
     parser.add_argument(
-        "--year", type=int, nargs="?", default=datetime.datetime.now().year,
-        help="Year to process",
+        "--year", type=str, nargs="?", default="*",
+        help="Year to process, can be a wildcard",
     )
     parser.add_argument(
         "--freq", type=str, default="1d",

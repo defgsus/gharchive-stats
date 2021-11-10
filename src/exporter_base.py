@@ -68,8 +68,7 @@ class JsonEncoder(json.JSONEncoder):
 
 class DateBucketExporter(RowExporter):
 
-    BUCKETS_STASH_SIZE_THRESHOLD = 2
-    FREQUENCIES = ("d", "h", "5min")
+    FREQUENCIES = ("d", "h", "m", "10m")
 
     def __init__(self, archive: GHArchive, frequency: str):
         assert frequency in self.FREQUENCIES
@@ -78,32 +77,30 @@ class DateBucketExporter(RowExporter):
         self._buckets = dict()
         self._yielded_buckets = set()
         self._event_count = 0
+        self._bucket_stash_size_threshold = 2
+        if self.frequency == "m":
+            self._bucket_stash_size_threshold = 120
+        elif self.frequency == "10m":
+            self._bucket_stash_size_threshold = 12
 
-        if self.frequency == "h":
-            self._max_delta = datetime.timedelta(hours=2)
-        elif self.frequency == "d":
-            self._max_delta = datetime.timedelta(days=2)
-        elif self.frequency == "5min":
-            self._max_delta = datetime.timedelta(hours=1)
+    def bucket_date(self, date: str) -> str:
+        if self.frequency == "d":
+            return date[:10] + "T00:00:00Z"
+        elif self.frequency == "h":
+            return date[:13] + ":00:00Z"
+        elif self.frequency == "10m":
+            return date[:15] + "0:00Z"
+        elif self.frequency == "m":
+            return date[:16] + ":00Z"
 
-    def bucket_date(self, date: str) -> datetime.datetime:
-        #return pd.Timestamp(date).round(self.frequency).to_pydatetime()
-        if self.frequency == "h":
-            return datetime.datetime.strptime(date[:13], "%Y-%m-%dT%H")
-        elif self.frequency == "d":
-            return datetime.datetime.strptime(date[:10], "%Y-%m-%d")
-        elif self.frequency == "5min":
-            date = datetime.datetime.strptime(date[:16], "%Y-%m-%dT%H:%M")
-            return date.replace(minute=(date.minute // 5) * 5)
-
-    def new_bucket(self, date: datetime.datetime) -> dict:
+    def new_bucket(self, date: str) -> dict:
         return {}
 
-    def add_to_bucket(self, date: datetime.datetime, bucket: dict, event: dict):
+    def add_to_bucket(self, date: str, bucket: dict, event: dict):
         key = event["type"]
         bucket[key] = bucket.get(key, 0) + 1
 
-    def bucket_to_row(self, date: datetime.datetime, bucket: dict) -> dict:
+    def bucket_to_row(self, date: str, bucket: dict) -> dict:
         return {
             "date": date,
             **bucket,
@@ -134,10 +131,10 @@ class DateBucketExporter(RowExporter):
             self._buckets.clear()
             return
 
-        if len(self._buckets) < self.BUCKETS_STASH_SIZE_THRESHOLD:
+        if len(self._buckets) < self._bucket_stash_size_threshold:
             return
 
-        for bd in sorted(self._buckets)[:-self.BUCKETS_STASH_SIZE_THRESHOLD]:
+        for bd in sorted(self._buckets)[:-self._bucket_stash_size_threshold]:
             yield self.bucket_to_row(bd, self._buckets[bd])
             self._yielded_buckets.add(bd)
             del self._buckets[bd]
