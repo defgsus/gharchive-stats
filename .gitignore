@@ -1,6 +1,6 @@
-*.json
-*.ndjson
-*.csv
+*.json*
+*.ndjson*
+*.csv*
 cache/
 notebooks/
 raw/
