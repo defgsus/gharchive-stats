@@ -45,6 +45,11 @@ class GHArchive:
                         yield event
                         id_set.add(event["id"])
 
+                        # remove the oldest IDs
+                        if len(id_set) >= 1_000_000:
+                            for id in sorted(id_set)[:500_000]:
+                                id_set.remove(id)
+
     def _sort_key(self, k: str):
         "YYYY-mm-dd-h"
         idx = k.rfind(os.sep) + 1

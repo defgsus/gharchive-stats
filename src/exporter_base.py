@@ -143,19 +143,30 @@ class DateBucketExporter(ExporterBase):
             del self._buckets[bd]
             print(f" @ {bucket_date} STORED row {bd}, {len(self._buckets)} buckets in stash")
 
+        if len(self._yielded_buckets) >= 2000:
+            for b in sorted(self._yielded_buckets)[:1000]:
+                self._yielded_buckets.remove(b)
+
 
 def export(
         iterable: Generator[dict, None, None],
         exporters: List[ExporterBase],
         tqdm: Optional[dict] = None,
 ):
+    from .memory import process_memory
+
     try:
         previous_event = None
 
         if tqdm is not None:
             iterable = tqdm_iter(iterable, **tqdm)
 
+        count = 0
         for event in iterable:
+
+            if count % 100000 == 0:
+                print(f"\nPROGMEM {process_memory():,} bytes")
+            count = count + 1
 
             if previous_event:
                 for e in exporters:
