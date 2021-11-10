@@ -3,6 +3,7 @@ import glob
 import gzip
 import json
 import os
+import warnings
 from typing import Union, Generator, List, Optional
 
 
@@ -40,6 +41,11 @@ class GHArchive:
             with gzip.open(fn, "rt") as zf:
                 for line in zf.readlines():
                     event = json.loads(line)
+
+                    # skip the old events
+                    if not event.get("id"):
+                        warnings.warn("Old events (without id) are skipped a.t.m.")
+                        continue
 
                     if event["id"] not in id_set:
                         yield event

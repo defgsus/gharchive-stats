@@ -1,6 +1,8 @@
+import os
 import csv
 import json
 import datetime
+import warnings
 from pathlib import Path
 from typing import Generator, Union, Optional, List
 
@@ -28,11 +30,16 @@ class ExporterBase:
         self.format = format
         self._writer = None
         self._fp = None
+        self._csv_fieldnames: Optional[List[str]] = None
+        self._csv_file_count: int = 0
 
     def finish(self):
         if self._fp is not None:
             self._fp.close()
             self._fp = None
+
+    def columns(self) -> Optional[List[str]]:
+        pass
 
     def digest(self, event: dict, final: bool):
         """
@@ -49,17 +56,45 @@ class ExporterBase:
 
     def store_row(self, row: dict):
         if self._fp is None:
+            os.makedirs(Path(self.filename).parent, exist_ok=True)
             self._fp = open(self.filename, "wt")
 
         if self.format == "csv":
+
             if self._writer is None:
-                self._writer = csv.DictWriter(self._fp, fieldnames=list(row.keys()))
-                self._writer.writeheader()
+                # create csv with columns as we know it
+                self._csv_fieldnames = self.columns() or list(row.keys())
+                self._start_csv_writer()
+
+            else:
+                # check if a new column appeared
+                missing_keys = set(row.keys()) - set(self._csv_fieldnames)
+                if missing_keys:
+                    # create a new file
+                    self._csv_file_count += 1
+                    new_filename = self.filename.split(".")
+                    new_filename = ".".join(new_filename[:-1]) + f"-{self._csv_file_count}." + new_filename[-1]
+                    warnings.warn(
+                        f"Detected new csv columns {missing_keys}, starting new file '{new_filename}"
+                    )
+                    self._fp.close()
+
+                    # add the new keys to the known ones
+                    for key in row:
+                        if key not in self._csv_fieldnames:
+                            self._csv_fieldnames.append(key)
+
+                    self._fp = open(new_filename, "wt")
+                    self._start_csv_writer()
 
             self._writer.writerow(row)
 
         elif self.format == "ndjson":
             self._fp.write(json.dumps(row, cls=JsonEncoder) + "\n")
+
+    def _start_csv_writer(self):
+        self._writer = csv.DictWriter(self._fp, fieldnames=self._csv_fieldnames)
+        self._writer.writeheader()
 
 
 class JsonEncoder(json.JSONEncoder):
