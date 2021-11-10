@@ -1,0 +1,12 @@
+*.json
+*.ndjson
+*.csv
+cache/
+notebooks/
+raw/
+processed/
+env/
+.idea/
+*.iml
+__pycache__/
+*.pyc
