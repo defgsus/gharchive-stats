@@ -6,6 +6,8 @@ import os
 import warnings
 from typing import Union, Generator, List, Optional
 
+from .ndjson import iter_ndjson
+
 
 class GHArchive:
 
@@ -38,23 +40,21 @@ class GHArchive:
     ) -> Generator[dict, None, None]:
         id_set = set()
         for fn in self.raw_filenames():
-            with gzip.open(fn, "rt") as zf:
-                for line in zf.readlines():
-                    event = json.loads(line)
+            for event in iter_ndjson(fn):
 
-                    # skip the old events
-                    if not event.get("id"):
-                        warnings.warn("Old events (without id) are skipped a.t.m.")
-                        continue
+                # skip the old events
+                if not event.get("id"):
+                    warnings.warn("Old events (without id) are skipped a.t.m.")
+                    continue
 
-                    if event["id"] not in id_set:
-                        yield event
-                        id_set.add(event["id"])
+                if event["id"] not in id_set:
+                    yield event
+                    id_set.add(event["id"])
 
-                        # remove the oldest IDs
-                        if len(id_set) >= 1_000_000:
-                            for id in sorted(id_set)[:500_000]:
-                                id_set.remove(id)
+                    # remove the oldest IDs
+                    if len(id_set) >= 1_000_000:
+                        for id in sorted(id_set)[:500_000]:
+                            id_set.remove(id)
 
     def _sort_key(self, k: str):
         "YYYY-mm-dd-h"

@@ -24,4 +24,8 @@ def iter_ndjson(file: Union[str, Path, IO]) -> Generator[dict, None, None]:
 
     else:
         for line in file.readlines():
-            yield json.loads(line)
+            try:
+                yield json.loads(line)
+            except json.JSONDecodeError as e:
+                print(f"\n\nJSON ERROR '{e}' for line '{line}'\n")
+
