@@ -31,8 +31,9 @@ def parse_args():
     parser.add_argument(
         "-e", "--export", type=str, nargs="*",
         help=f"Things to export: {{ID}}/{{freq}}/{{format}}"
-             f", IDs: {sorted(ExporterBase.exporters)}"
-             f", freqs: {DateBucketExporter.FREQUENCIES}",
+             f", ID: {sorted(ExporterBase.exporters)}"
+             f", freq: {DateBucketExporter.FREQUENCIES}"
+             f", format: {list(ExporterBase.FORMATS) + [f + '.gz' for f in ExporterBase.FORMATS]}",
     )
 
     return parser.parse_args()
@@ -59,12 +60,13 @@ def main(args):
         for e in args.export:
             name, freq, format = e.split("/")
             filename = Path(args.output) / f"{name}_{freq}"
-            filename = add_extension(str(filename), format)
+            filename = add_extension(str(filename), format.split(".")[0])
             exporters.append(ExporterBase.exporters[name](
                 filename=filename,
                 format=format,
                 frequency=freq,
             ))
+
         export(
             iterable=archive.iter_events(),
             exporters=exporters,

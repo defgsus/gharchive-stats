@@ -1,6 +1,7 @@
 import os
 import csv
 import json
+import gzip
 import datetime
 import warnings
 from pathlib import Path
@@ -25,7 +26,8 @@ class ExporterBase:
 
     def __init__(self, filename: Union[Path, str], format: str):
         self.filename = str(filename)
-        self.format = format
+        self.format = format.split(".")[0]
+        self.compressed = format.endswith(".gz")
         self._writer = None
         self._fp = None
         self._csv_fieldnames: Optional[List[str]] = None
@@ -55,7 +57,7 @@ class ExporterBase:
     def store_row(self, row: dict):
         if self._fp is None:
             os.makedirs(Path(self.filename).parent, exist_ok=True)
-            self._fp = open(self.filename, "wt")
+            self._start_file(self.filename)
 
         if self.format == "csv":
 
@@ -73,8 +75,7 @@ class ExporterBase:
                 if missing_keys:
                     # create a new file
                     self._csv_file_count += 1
-                    new_filename = self.filename.split(".")
-                    new_filename = ".".join(new_filename[:-1]) + f"-{self._csv_file_count}." + new_filename[-1]
+                    new_filename = self.filename_suffix(self.filename, str(self._csv_file_count))
                     warnings.warn(
                         f"Detected new csv columns {missing_keys}, starting new file '{new_filename}"
                     )
@@ -85,7 +86,7 @@ class ExporterBase:
                         if key not in self._csv_fieldnames:
                             self._csv_fieldnames.append(key)
 
-                    self._fp = open(new_filename, "wt")
+                    self._start_file(new_filename)
                     self._start_csv_writer()
 
             self._writer.writerow(row)
@@ -93,9 +94,20 @@ class ExporterBase:
         elif self.format == "ndjson":
             self._fp.write(json.dumps(row, cls=JsonEncoder) + "\n")
 
+    def _start_file(self, filename: str):
+        if self.compressed:
+            self._fp = gzip.open(f"{filename}.gz", "wt")
+        else:
+            self._fp = open(filename, "wt")
+
     def _start_csv_writer(self):
         self._writer = csv.DictWriter(self._fp, fieldnames=self._csv_fieldnames)
         self._writer.writeheader()
+
+    @classmethod
+    def filename_suffix(cls, filename: str, suffix: str) -> str:
+        f = filename.split(".")
+        return f'{".".join(f[:-1])}{suffix}.{f[-1]}'
 
 
 class JsonEncoder(json.JSONEncoder):
@@ -139,8 +151,8 @@ class DateBucketExporter(ExporterBase):
         key = event["type"]
         bucket[key] = bucket.get(key, 0) + 1
 
-    def bucket_to_row(self, date: str, bucket: dict) -> dict:
-        return {
+    def bucket_to_rows(self, date: str, bucket: dict) -> Generator[dict, None, None]:
+        yield {
             "date": date,
             **bucket,
         }
@@ -165,7 +177,8 @@ class DateBucketExporter(ExporterBase):
 
         if final:
             for k in sorted(self._buckets):
-                self.store_row(self.bucket_to_row(k, self._buckets[k]))
+                for row in self.bucket_to_rows(k, self._buckets[k]):
+                    self.store_row(row)
                 self._yielded_buckets.add(k)
             self._buckets.clear()
             return
@@ -174,7 +187,8 @@ class DateBucketExporter(ExporterBase):
             return
 
         for bd in sorted(self._buckets)[:-self._bucket_stash_size_threshold]:
-            self.store_row(self.bucket_to_row(bd, self._buckets[bd]))
+            for row in self.bucket_to_rows(bd, self._buckets[bd]):
+                self.store_row(row)
             self._yielded_buckets.add(bd)
             del self._buckets[bd]
             print(f" @ {bucket_date} STORED row {bd}, {len(self._buckets)} buckets in stash")
@@ -200,7 +214,7 @@ def export(
         count = 0
         for event in iterable:
 
-            if count % 100000 == 0:
+            if count % 500000 == 0:
                 print(f"\nPROGMEM {process_memory():,} bytes")
             count = count + 1
 
