@@ -6,7 +6,7 @@ import os
 import warnings
 from typing import Union, Generator, List, Optional
 
-from .ndjson import iter_ndjson
+from .file_iter import iter_ndjson
 
 
 class GHArchive:

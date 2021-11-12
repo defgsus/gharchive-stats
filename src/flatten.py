@@ -1,6 +1,7 @@
 
 
 def flatten_event(e: dict) -> dict:
+    # NOT USED A.T.M.
     row = {
         "id": e["id"],
         "date": e["created_at"],
