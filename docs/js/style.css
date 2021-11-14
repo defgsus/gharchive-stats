@@ -1,32 +1,47 @@
 body {
     position: relative;
     font-family: monospace;
-    background: #dde1e6;
+    background: #e5e9ea;
 }
 
-/*
 .page-wrapper {
     width: 70%;
-    max-width: 1000px;
+    max-width: 1100px;
     margin-left: auto;
     margin-right: auto;
 }
 
 @media (max-width: 1300px) {
     .page-wrapper {
-        width: 90%;
+        width: 100%;
     }
 }
-@media (max-width: 900px) {
-    .page-wrapper {
-        width: 98%;
-    }
-}
-*/
+
 
 table.dataTable a {
     color: #144b86;
 }
 table.dataTable tbody tr:hover {
-    background: #eee;
+    background: #f1f6f9;
+}
+
+.timeline {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    height: 1rem;
+    background: #dceaf0;
+    margin-top: .2rem;
+}
+
+.timeline .segment {
+    flex-grow: 1;
+    position: relative;
+}
+
+.timeline .segment .value {
+    background: #5e768f;
+    width: 100%;
+    position: absolute;
+    bottom: 0;
 }
