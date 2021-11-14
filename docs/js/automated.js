@@ -3,6 +3,10 @@ $(document).ready(() => {
 
     let repo_data = null;
 
+    function set_info(text) {
+        document.querySelector(".info").textContent = text;
+    }
+
     function RepoRow(data) {
         this.data = data;
         this.repo = render_cell_repo(data);
@@ -25,16 +29,22 @@ $(document).ready(() => {
     }
 
     function render_name(data) {
+        const [user_name, repo_name] = data.repo.split("/");
+
         let markup = `<div title="${data.description ? data.description.replaceAll('\"', '&quot;') : 'no description'}">`;
         if (data.name)
             markup += `${data.name}<br>`;
-        markup += `<a href="https://github.com/${data.repo}" target="_blank">${data.repo}</a>`;
+
+        if (data.status === "active")
+            markup += `<a href="https://github.com/${data.repo}" target="_blank">${data.repo}</a>`;
+        else
+            markup += `<a href="https://github.com/${user_name}/" target="_blank">${user_name}</a>/${repo_name}`;
+
         if (data.homepage)
-            markup += ` (<a href="${data.homepage}" target="_blank">homepage</a>)`;
-        else if (data.repo.endsWith(".github.io")) {
-            const repo_name = data.repo.split('/')[1];
-            markup += ` (<a href="https://${repo_name}/" target="_blank">gh-pages</a>)`;
-        }
+            markup += ` <span class="small-link">(<a href="${data.homepage}" target="_blank">homepage</a>)</span>`;
+        else if (data.repo.endsWith(".github.io") && data.status === "active")
+            markup += ` <span class="small-link">(<a href="https://${repo_name}/" target="_blank">gh-pages</a>)</span>`;
+
         markup += `</div>`;
         return markup;
     }
@@ -70,6 +80,8 @@ $(document).ready(() => {
     }
 
     function start_app(data) {
+        set_info("⌛ preparing table data...");
+
         data.dates = [];
         repo_data = data;
 
@@ -79,37 +91,42 @@ $(document).ready(() => {
             d.setDate(d.getDate() + 1);
         }
 
-        $(".data-table").DataTable({
-            pageLength: 25,
-            data: data.rows.map(row => new RepoRow(row)),
-            rowCallback: render_row,
-            lengthMenu: [[10, 25, 50, 100, 500, -1], [10, 25, 50, 100, 500, "All"]],
-            order: [[1, "asc"]],
-            columns: [
-                {data: "repo_name", visible: false},
-                {data: "repo", title: "repo", orderData: 0},
-                //{data: "description", title: "description"},
-                {data: "all_push_events", title: "push events"},
-                {data: "push_events", title: "distinct push events"},
-                {data: "commits", title: "commits"},
-                {data: "distinct_commits", title: "distinct commits"},
-                {data: "push_users", title: "users"},
-                {data: "refs", title: "number of refs"},
-                {data: "status", title: "status"},
-                {data: "size", title: "size (today)"},
-                {data: "stars", title: "stars (2018)"},
-                {data: "stars_today", title: "stars (today)"},
-                //{data: "watchers_today", title: "watchers (today)"},
+        setTimeout(() => {
+            $(".data-table").DataTable({
+                pageLength: 25,
+                autoWidth: false,
+                data: data.rows.map(row => new RepoRow(row)),
+                rowCallback: render_row,
+                lengthMenu: [[10, 25, 50, 100, 500, -1], [10, 25, 50, 100, 500, "All"]],
+                order: [[1, "asc"]],
+                columns: [
+                    {data: "repo_name", visible: false},
+                    {data: "repo", title: "repo", orderData: 0},
+                    //{data: "description", title: "description"},
+                    {data: "all_push_events", title: "push events"},
+                    {data: "push_events", title: "distinct push events"},
+                    {data: "commits", title: "commits"},
+                    {data: "distinct_commits", title: "distinct commits"},
+                    {data: "push_users", title: "users"},
+                    {data: "refs", title: "number of refs"},
+                    {data: "status", title: "status"},
+                    {data: "size", title: "size (today)"},
+                    {data: "stars", title: "stars (2018)"},
+                    {data: "stars_today", title: "stars (today)"},
+                    //{data: "watchers_today", title: "watchers (today)"},
 
-            ]
-        });
+                ]
+            });
+            set_info("");
+        }, 100);
+
     }
 
     fetch("data/automated-2018.json")
         .then(r => r.json())
         .then(start_app)
         .catch(reason => {
-            document.querySelector(".info").textContent = `failed loading data: ${reason}`;
+             set_info(`failed loading data: ${reason}`);
         })
 
 });

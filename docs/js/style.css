@@ -11,7 +11,7 @@ body {
     margin-right: auto;
 }
 
-@media (max-width: 1300px) {
+@media (max-width: 1400px) {
     .page-wrapper {
         width: 100%;
     }
@@ -21,11 +21,17 @@ body {
 table.dataTable a {
     color: #144b86;
 }
+table.dataTable tbody tr.even {
+    background: #f2f5f7;
+}
 table.dataTable tbody tr:hover {
-    background: #f1f6f9;
+    background: #e9f4fb;
+}
+table.dataTable tbody tr.even:hover {
+    background: #eef6fb;
 }
 table.dataTable tbody td {
-    vertical-align: top;
+    vertical-align: bottom;
 }
 
 .timeline {
@@ -60,4 +66,22 @@ table.dataTable tbody td {
 
 .status-exception {
     color: #500;
+}
+
+.small-link {
+    font-size: .6rem;
+    font-weight: bold;
+}
+
+.flex-row {
+    display: flex;
+    flex-direction: row;
+}
+
+.flex-grow {
+    flex-grow: 1000;
+}
+
+.nav-item {
+    margin-right: 1rem;
 }
