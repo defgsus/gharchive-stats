@@ -5,7 +5,7 @@ is more descriptive.
 
 Nice compact things will be published via github pages:
   
-  - [defgsus.github.io/gharchive-stats/automatic.html](https://defgsus.github.io/gharchive-stats/automated.html)
+  - [defgsus.github.io/gharchive-stats/automatic.html](https://defgsus.github.io/gharchive-stats/automatic.html)
 
 
 ## strange things found...
