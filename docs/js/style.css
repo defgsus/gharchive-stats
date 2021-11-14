@@ -1,0 +1,32 @@
+body {
+    position: relative;
+    font-family: monospace;
+    background: #dde1e6;
+}
+
+/*
+.page-wrapper {
+    width: 70%;
+    max-width: 1000px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+@media (max-width: 1300px) {
+    .page-wrapper {
+        width: 90%;
+    }
+}
+@media (max-width: 900px) {
+    .page-wrapper {
+        width: 98%;
+    }
+}
+*/
+
+table.dataTable a {
+    color: #144b86;
+}
+table.dataTable tbody tr:hover {
+    background: #eee;
+}
