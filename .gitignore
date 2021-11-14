@@ -2,6 +2,7 @@
 *.json*
 *.ndjson*
 *.csv*
+*credentials*
 cache/
 notebooks/
 raw/

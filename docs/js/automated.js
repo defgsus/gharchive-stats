@@ -1,14 +1,49 @@
 
-$(() => {
+$(document).ready(() => {
 
     let repo_data = null;
 
-    const render_cell_repo = c => {
-        let markup = `<a href="https://github.com/${c}" target="_blank">${c}</a>`;
-        markup += `<div class="timeline">`;
+    function RepoRow(data) {
+        this.data = data;
+        this.repo = render_cell_repo(data);
+        this.repo_name = data.repo;
+        this.description = data.description;
+        this.push_events = data.push_events;
+        this.all_push_events = data.all_push_events;
+        this.commits = data.commits;
+        this.distinct_commits = data.distinct_commits;
+        this.push_users = data.push_users;
+        this.refs = data.refs;
+        this.size = data.size || "";
+        this.stars = data.stars || "";
+        this.stars_today = data.stars_today || "";
+        this.status = data.status.startsWith("deleted")
+            ? `<span class="status-deleted">${data.status}</span>`
+            : data.status.startsWith("code")
+                ? `<span class="status-exception">${data.status}</span>`
+                : `<span class="status-active">${data.status}</span>`;
+    }
+
+    function render_name(data) {
+        let markup = `<div title="${data.description ? data.description.replaceAll('\"', '&quot;') : 'no description'}">`;
+        if (data.name)
+            markup += `${data.name}<br>`;
+        markup += `<a href="https://github.com/${data.repo}" target="_blank">${data.repo}</a>`;
+        if (data.homepage)
+            markup += ` (<a href="${data.homepage}" target="_blank">homepage</a>)`;
+        else if (data.repo.endsWith(".github.io")) {
+            const repo_name = data.repo.split('/')[1];
+            markup += ` (<a href="https://${repo_name}/" target="_blank">gh-pages</a>)`;
+        }
+        markup += `</div>`;
+        return markup;
+    }
+
+    function render_cell_repo(data) {
+        let markup = render_name(data) + `<div class="timeline">`;
 
         const
-            timeline = repo_data.timelines[c],
+            timeline = repo_data.timelines[data.repo],
             dates = repo_data.dates;
 
         const max_v = timeline.reduce((s, v) => Math.max(s, v), 0);
@@ -28,7 +63,7 @@ $(() => {
         }
         markup += `</div>`;
         return markup;
-    };
+    }
 
     function render_row(row, data) {
         //row.onclick = e => console.log(e);
@@ -46,17 +81,26 @@ $(() => {
 
         $(".data-table").DataTable({
             pageLength: 25,
-            data: data.rows,
+            data: data.rows.map(row => new RepoRow(row)),
             rowCallback: render_row,
+            lengthMenu: [[10, 25, 50, 100, 500, -1], [10, 25, 50, 100, 500, "All"]],
+            order: [[1, "asc"]],
             columns: [
-                {data: "repo", title: "repo", render: render_cell_repo},
+                {data: "repo_name", visible: false},
+                {data: "repo", title: "repo", orderData: 0},
+                //{data: "description", title: "description"},
                 {data: "all_push_events", title: "push events"},
                 {data: "push_events", title: "distinct push events"},
                 {data: "commits", title: "commits"},
                 {data: "distinct_commits", title: "distinct commits"},
                 {data: "push_users", title: "users"},
-                {data: "refs", title: "refs"},
-                {data: "stars", title: "stars"},
+                {data: "refs", title: "number of refs"},
+                {data: "status", title: "status"},
+                {data: "size", title: "size (today)"},
+                {data: "stars", title: "stars (2018)"},
+                {data: "stars_today", title: "stars (today)"},
+                //{data: "watchers_today", title: "watchers (today)"},
+
             ]
         });
     }
