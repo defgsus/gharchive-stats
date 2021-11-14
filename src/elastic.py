@@ -70,13 +70,42 @@ class ElasticWatchExporter(ElasticExporterBase):
     }
 
 
+class ElasticPushExporter(ElasticExporterBase):
+
+    INDEX_NAME = "gharchive-push-*"
+
+    MAPPINGS = {
+        "properties": {
+            **ElasticExporterBase.BASE_MAPPING,
+            "user": {"type": "keyword"},
+            # "org": {"type": "keyword"},
+            "repo": {"type": "keyword"},
+            "ref": {"type": "keyword"},
+            "events": {"type": "integer"},
+            "commits": {"type": "integer"},
+            "distinct_commits": {"type": "integer"},
+            "message_len": {"type": "integer"},
+            "authors": {"type": "integer"},
+        }
+    }
+
+
+# -------------------------------------------------------------------------------------
+
+
 ELASTIC_EXPORTERS = {
     "delete": ElasticDeleteExporter,
+    "push": ElasticPushExporter,
     "watch": ElasticWatchExporter,
 }
 
 
-def export_elastic(filename: Union[str, Path], chuck_size: int = 500, with_count: bool = True):
+def export_elastic(
+        filename: Union[str, Path],
+        skip: int = 0,
+        chunk_size: int = 2000,
+        with_count: bool = True,
+):
     export_type = Path(filename).name.split("_")[0]
     if export_type not in ELASTIC_EXPORTERS:
         raise ValueError(
@@ -87,12 +116,13 @@ def export_elastic(filename: Union[str, Path], chuck_size: int = 500, with_count
 
     total = None
     if with_count:
-        total = sum(1 for _ in tqdm(iter_lines(filename), desc=f"counting lines in '{filename}'"))
+        total = 127_000_000
+        #total = sum(1 for _ in tqdm(iter_lines(filename), desc=f"counting lines in '{filename}'"))
 
     bulk_rows = []
-    for row in tqdm(iter_file(filename), desc=f"exporting '{filename}'", total=total):
+    for row in tqdm(iter_file(filename, skip=skip), desc=f"exporting '{filename}'", total=total):
         bulk_rows.append(row)
-        if len(bulk_rows) >= chuck_size:
+        if len(bulk_rows) >= chunk_size:
             exporter.export_list(bulk_rows, chunk_size=500)
             bulk_rows = []
 

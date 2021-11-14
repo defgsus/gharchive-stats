@@ -4,6 +4,7 @@ import datetime
 
 from src.gharchive import GHArchive
 from src.exporters import *
+from src.file_iter import iter_lines
 
 
 PATH = Path(__file__).resolve().parent
@@ -13,8 +14,12 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "command", type=str,
-        choices=["export"],
+        choices=["export", "elastic"],
         help="Command",
+    )
+    parser.add_argument(
+        "-i", "--input", type=str, default=".",
+        help="A generated file which should be processed further",
     )
     parser.add_argument(
         "-o", "--output", type=str, default=".",
@@ -35,6 +40,10 @@ def parse_args():
              f", freq: {DateBucketExporter.FREQUENCIES}"
              f", format: {list(ExporterBase.FORMATS) + [f + '.gz' for f in ExporterBase.FORMATS]}",
     )
+    parser.add_argument(
+        "--skip", type=int, default=0,
+        help="Number of entries to skip when exporting",
+    )
 
     return parser.parse_args()
 
@@ -51,7 +60,14 @@ def main(args):
         year=args.year,
     )
 
-    if args.command == "export":
+    if args.command == "elastic":
+        from src.elastic import export_elastic
+        if not args.input:
+            print("Need to specify an input file (-i/--input)")
+            exit(1)
+        export_elastic(filename=args.input, skip=args.skip)
+
+    elif args.command == "export":
         if not args.export:
             print("Need to specify at least one exporter (-e/--export)")
             exit(1)
