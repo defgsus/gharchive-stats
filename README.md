@@ -6,6 +6,7 @@ is more descriptive.
 Nice compact things will be published via github pages:
   
   - [defgsus.github.io/gharchive-stats/automatic.html](https://defgsus.github.io/gharchive-stats/automatic.html)
+  - [defgsus.github.io/good-github](https://defgsus.github.io/good-github/)
 
 
 ## strange things found...
